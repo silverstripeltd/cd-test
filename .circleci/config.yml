@@ -40,6 +40,15 @@ jobs:
       - run:
           <<: *install_composer
 
+      - run: |
+          cat << 'EOF' > .env
+          SS_DATABASE_USERNAME='root'
+          SS_DATABASE_PASSWORD=''
+          SS_DATABASE_NAME='circle_test'
+          SS_DATABASE_SERVER='127.0.0.1'
+          SS_ENVIRONMENT_TYPE='dev'
+          EOF
+
       # Download and cache dependencies
       - restore_cache:
           keys:
@@ -47,7 +56,8 @@ jobs:
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
 
-      - run: composer install --no-progress --no-scripts --prefer-dist --no-dev --ignore-platform-reqs --optimize-autoloader --no-interaction --no-suggest
+      - run: composer install --no-progress --no-scripts --prefer-dist --optimize-autoloader --no-interaction --no-suggest
+      - run: composer vendor-expose copy
 
       - save_cache:
           paths:
