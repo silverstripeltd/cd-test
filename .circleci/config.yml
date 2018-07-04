@@ -56,8 +56,15 @@ jobs:
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
 
+      - run: echo 'deb http://packages.dotdeb.org jessie all' | sudo tee -a /etc/apt/sources.list
+      - run: echo 'deb-src http://packages.dotdeb.org jessie all' | sudo tee -a /etc/apt/sources.list
+      - run: cat /etc/apt/sources.list
+      - run: cd /tmp
+      - run: wget https://www.dotdeb.org/dotdeb.gpg
+      - run: sudo apt-key add dotdeb.gpg
       - run: sudo apt-get update
-      - run: sudo apt-get -y install php7.1-intl
+      - run: sudo apt-get install php7.1-intl
+
       - run: composer install --no-progress --no-scripts --prefer-dist --optimize-autoloader --no-interaction --no-suggest
       - run: composer vendor-expose copy
       - run: framework/sake dev/build
