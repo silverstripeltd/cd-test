@@ -1,0 +1,145 @@
+
+# PHP CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-php/ for more details
+#
+version: 2
+jobs:
+
+  # Build dependencies, composer, css, js etc
+  build:
+    working_directory: ~/var/www
+    docker:
+      - image: brettt89/silverstripe-web
+    steps:
+      - checkout
+      # Download and cache composer dependencies
+      - restore_cache:
+          keys:
+            - v1-composer-{{ checksum "composer.json" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-composer-
+      - run:
+          name: Install Composer + run
+          command: |
+            curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
+            composer install --prefer-source --no-interaction
+            composer vendor-expose copy
+      - save_cache:
+          paths:
+            - ./vendor
+          key: v1-composer-{{ checksum "composer.json" }}
+      - persist_to_workspace:
+          root: ~/var/
+          paths: www
+
+  # Run tests to ensure the reliability of this code
+  test:
+    working_directory: ~/var/www
+    docker:
+      - image: brettt89/silverstripe-web
+        environment:
+          - SS_DATABASE_CLASS=MySQLPDODatabase
+          - SS_DATABASE_SERVER=127.0.0.1
+          - SS_DATABASE_USERNAME=root
+          - SS_DATABASE_PASSWORD=ubuntu
+          - SS_DATABASE_NAME=circle_test
+          - SS_ENVIRONMENT_TYPE=dev
+      - image: circleci/mysql:5.7
+        environment:
+          - MYSQL_USER=root
+          - MYSQL_ROOT_PASSWORD=ubuntu
+          - MYSQL_DATABASE=circle_test
+          - MYSQL_HOST=127.0.0.1
+    steps:
+      - attach_workspace:
+          at: ~/var/
+      - run: vendor/silverstripe/framework/sake dev/build
+      - run: vendor/bin/phpunit mysite
+
+  # Package the built and tested code as it will be deployed
+  package:
+    working_directory: ~/var/www
+    docker:
+      - image: brettt89/silverstripe-web
+    steps:
+      - attach_workspace:
+          at: ~/var/
+      - run:
+          name: Compress built and tested code then store as an artifact
+          # Remove dev dependencies and git dir
+          # tar compress and store in easily findable location
+          command: |
+            rm -rf vendor/phpunit vendor/bin/phpunit .git
+            cd ..
+            cp -rp www site
+            mkdir /builds
+            tar -zcf /builds/$CIRCLE_SHA1 site
+      - store_artifacts:
+          # Directory on file system to store as artifcat
+          path: /builds
+
+  # DASH_TOKEN is configured as an env-var in circleci
+  # Creation - from your profile page on the deployment dashboard
+  # CIRCLE_CD_TOKEN is configured as an env-var in circleci
+  # Creation - https://circleci.com/docs/2.0/managing-api-tokens/#creating-a-personal-api-token
+  # Configuring - https://circleci.com/docs/2.0/env-vars/
+  # grep at the end to fail if not a successful call to the API
+  queue_build_prod:
+    working_directory: /tmp
+    docker:
+      - image: brettt89/silverstripe-web
+    steps:
+      - run:
+          name: Get public location of artifacts from this build and queue a deployment
+          command: |
+            curl https://circleci.com/api/v1.1/project/github/silverstripeltd/cd-test/$CIRCLE_PREVIOUS_BUILD_NUM/artifacts?circle-token=$CIRCLE_CD_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
+            echo "{ \"ref\": \"$(cat artifacts.txt)?circle-token=$CIRCLE_CD_TOKEN\", \"ref_type\": \"package\", \"title\": \"[CI] $CIRCLE_SHA1\", \"summary\": \"automatically queued from CircleCI \\nrepo: $CIRCLE_REPOSITORY_URL \\ncode: $(cat artifacts.txt) \", \"bypass\": false }" > data.json
+            curl -X POST -u me@silverstripe.com:$DASH_TOKEN https://platform.silverstripe.com/naut/project/stack-code/environment/prod/deploys -H 'Content-Type: application/json' -H 'Accept: application/json' --data @data.json |& tee results.json
+            grep '"status_code": 201' results.json
+
+  # DASH_TOKEN is configured as an env-var in circleci
+  # Creation - from your profile page on the deployment dashboard
+  # CIRCLE_CD_TOKEN is configured as an env-var in circleci
+  # Creation - https://circleci.com/docs/2.0/managing-api-tokens/#creating-a-personal-api-token
+  # Configuring - https://circleci.com/docs/2.0/env-vars/
+  # grep at the end to fail if not a successful call to the API
+  deploy_build_uat:
+    working_directory: /tmp
+    docker:
+      - image: brettt89/silverstripe-web
+    steps:
+      - run:
+          name: Get public location of artifacts from this build and run a deployment
+          command: |
+            curl https://circleci.com/api/v1.1/project/github/silverstripeltd/cd-test/$CIRCLE_PREVIOUS_BUILD_NUM/artifacts?circle-token=$CIRCLE_CD_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
+            echo "{ \"ref\": \"$(cat artifacts.txt)?circle-token=$CIRCLE_CD_TOKEN\", \"ref_type\": \"package\", \"title\": \"[CI] $CIRCLE_SHA1\", \"summary\": \"automatically deployed from CircleCI \\nrepo: $CIRCLE_REPOSITORY_URL \\ncode: $(cat artifacts.txt) \", \"bypass\": false, \"bypass_and_start\": true }" > data.json
+            curl -X POST -u me@silverstripe.com:$DASH_TOKEN https://platform.silverstripe.com/naut/project/stack-code/environment/uat/deploys -H 'Content-Type: application/json' -H 'Accept: application/json' --data @data.json |& tee results.json
+            grep '"status_code": 201' results.json
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - package:
+          requires:
+            - test
+      # Queue a deployment to prod from successful master branch build
+      - queue_build_prod:
+          requires:
+            - package
+          filters:
+            branches:
+              only: master
+      # Action a deployment to UAT from successful develop branch build
+      - deploy_build_uat:
+          requires:
+            - package
+          filters:
+            branches:
+              only: develop
+
