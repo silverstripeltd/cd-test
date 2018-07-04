@@ -5,7 +5,11 @@
 #
 version: 2
 jobs:
+
   build:
+    branches:
+      only:
+        - master
     working_directory: ~/var/www
     docker:
       - image: brettt89/silverstripe-web
@@ -58,9 +62,6 @@ jobs:
     working_directory: ~/var/www
     docker:
       - image: brettt89/silverstripe-web
-    branches:
-      only:
-        - master
     steps:
       - attach_workspace:
           at: ~/var/
@@ -76,6 +77,6 @@ workflows:
             - build
       - package:
           requires:
-            - build
+            - test
 
 
