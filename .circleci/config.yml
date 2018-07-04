@@ -51,10 +51,7 @@ jobs:
           key: v1-composer-{{ checksum "composer.json" }}
 
       # run a build
-      - run: framework/sake dev/build
+      - run: vendor/silverstripe/framework/sake dev/build
 
       # run tests!
       - run: vendor/bin/phpunit -d memory_limit=512M
-
-      # Run the JS tests
-      - run: yarn run test-ci
