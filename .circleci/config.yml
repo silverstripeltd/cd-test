@@ -79,6 +79,36 @@ jobs:
           # Directory on file system to store as artifcat
           path: /builds
 
+  queue_deploy_build_prod:
+    working_directory: /tmp
+    docker:
+      - image: brettt89/silverstripe-web
+    steps:
+      - run:
+        name: Get public location of artifacts from this build
+        # CIRCLE_CD_TOKEN is configured as an env-var in circleci
+        # Creation - https://circleci.com/docs/2.0/managing-api-tokens/#creating-a-personal-api-token
+        # Configuring - https://circleci.com/docs/2.0/env-vars/
+        command: |
+          export CIRCLE_TOKEN=$CIRCLE_CD_TOKEN
+          curl https://circleci.com/api/v1.1/project/gh/silverstripeltd/cd-test/$CIRCLE_BUILD_NUM/artifacts?circle-token=$CIRCLE_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
+          cat artifacts.txt
+
+  deploy_build_uat:
+    working_directory: /tmp
+    docker:
+      - image: brettt89/silverstripe-web
+    steps:
+      - run:
+        name: Get public location of artifacts from this build
+        # CIRCLE_CD_TOKEN is configured as an env-var in circleci
+        # Creation - https://circleci.com/docs/2.0/managing-api-tokens/#creating-a-personal-api-token
+        # Configuring - https://circleci.com/docs/2.0/env-vars/
+        command: |
+          export CIRCLE_TOKEN=$CIRCLE_CD_TOKEN
+          curl https://circleci.com/api/v1.1/project/gh/silverstripeltd/cd-test/$CIRCLE_BUILD_NUM/artifacts?circle-token=$CIRCLE_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
+          cat artifacts.txt
+
 workflows:
   version: 2
   build_and_test:
@@ -90,8 +120,18 @@ workflows:
       - package:
           requires:
             - test
+      # Queue a deployment to prod from successful master branch builds
+      - queue_deploy_build_prod:
+          requires:
+            - package
           filters:
             branches:
               only: master
-
+      # Action a deployment to UAT from successful develop branch builds
+      - deploy_build_uat:
+          requires:
+            - package
+          filters:
+            branches:
+              only: develop
 
