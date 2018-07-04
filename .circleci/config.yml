@@ -6,6 +6,33 @@
 version: 2
 jobs:
   build:
+    working_directory: ~/var/www
+    docker:
+      - image: brettt89/silverstripe-web
+    steps:
+      - checkout
+      # Download and cache composer dependencies
+      - restore_cache:
+          keys:
+            - v1-composer-{{ checksum "composer.json" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-composer-
+      - run:
+          name: Install Composer + run
+          command: |
+            curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
+            composer install --prefer-source --no-interaction
+            composer vendor-expose copy
+      - save_cache:
+          paths:
+            - ./vendor
+          key: v1-composer-{{ checksum "composer.json" }}
+      - persist_to_workspace:
+          root: ~/var/
+          paths: www
+
+  test:
+    working_directory: ~/var/www
     docker:
       - image: brettt89/silverstripe-web
         environment:
@@ -21,37 +48,34 @@ jobs:
           - MYSQL_ROOT_PASSWORD=ubuntu
           - MYSQL_DATABASE=circle_test
           - MYSQL_HOST=127.0.0.1
+    steps:
+      - attach_workspace:
+        at: ~/var/
+      - run: vendor/silverstripe/framework/sake dev/build
+      - run: vendor/bin/phpunit mysite
 
+  package:
     working_directory: ~/var/www
-
+    docker:
+      - image: brettt89/silverstripe-web
     branches:
       only:
         - master
-
     steps:
-      - checkout
+      - attach_workspace:
+          at: ~/var/
+      - run: ls -la
 
-      # Download and cache composer dependencies
-      - restore_cache:
-          keys:
-            - v1-composer-{{ checksum "composer.json" }}
-            # fallback to using the latest cache if no exact match is found
-            - v1-composer-
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - package:
+          requires:
+            - build
 
-      - run:
-          name: Install Composer + run
-          command: |
-            curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
-            composer install --prefer-source --no-interaction
-            composer vendor-expose copy
 
-      - save_cache:
-          paths:
-            - ./vendor
-          key: v1-composer-{{ checksum "composer.json" }}
-
-      # run a build
-      - run: vendor/silverstripe/framework/sake dev/build
-
-      # run tests!
-      - run: vendor/bin/phpunit mysite
