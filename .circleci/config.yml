@@ -1,79 +1,73 @@
+
 # PHP CircleCI 2.0 configuration file
 #
 # Check https://circleci.com/docs/2.0/language-php/ for more details
 #
-install_composer: &install_composer
-  command: |
-      cd /tmp
-      EXPECTED_SIGNATURE=$(curl -q https://composer.github.io/installer.sig)
-      php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-      ACTUAL_SIGNATURE=$(php -r "echo hash_file('SHA384', 'composer-setup.php');")
-      if [ "$EXPECTED_SIGNATURE" != "$ACTUAL_SIGNATURE" ]
-      then
-          >&2 echo 'ERROR: Invalid installer signature'
-          rm composer-setup.php
-          exit 1
-      fi
-      sudo php composer-setup.php --quiet --install-dir /usr/local/bin --filename composer
-      RESULT=$?
-      rm composer-setup.php
-      exit $RESULT
-
 version: 2
 jobs:
   build:
     docker:
-      # specify the version you desire here
-      - image: circleci/php:7.1-apache-jessie-node-browsers
-      - image: circleci/mysql:5.6.40
+      - image: brettt89/silverstripe-web
+        environment:
+          - SS_DATABASE_CLASS=MySQLPDODatabase
+          - SS_DATABASE_SERVER=127.0.0.1
+          - SS_DATABASE_USERNAME=root
+          - SS_DATABASE_PASSWORD=ubuntu
+          - SS_DATABASE_NAME=circle_test
+          - SS_ENVIRONMENT_TYPE=dev
+      - image: circleci/mysql:5.7
+        environment:
+          - MYSQL_USER=root
+          - MYSQL_ROOT_PASSWORD=ubuntu
+          - MYSQL_DATABASE=circle_test
+          - MYSQL_HOST=127.0.0.1
 
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
-      # - image: circleci/mysql:9.4
+    working_directory: ~/var/www
 
-    working_directory: ~/repo
+    branches:
+      only:
+        - master
 
     steps:
       - checkout
 
-      - run:
-          <<: *install_composer
-
-      - run: |
-          cat << 'EOF' > .env
-          SS_DATABASE_USERNAME='root'
-          SS_DATABASE_PASSWORD=''
-          SS_DATABASE_NAME='circle_test'
-          SS_DATABASE_SERVER='127.0.0.1'
-          SS_ENVIRONMENT_TYPE='dev'
-          EOF
-
-      # Download and cache dependencies
+      # Download and cache composer dependencies
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "composer.json" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
+            - v1-composer-{{ checksum "composer.json" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-composer-
 
-      - run: echo 'deb http://packages.dotdeb.org jessie all' | sudo tee -a /etc/apt/sources.list
-      - run: echo 'deb-src http://packages.dotdeb.org jessie all' | sudo tee -a /etc/apt/sources.list
-      - run: cat /etc/apt/sources.list
-      - run: cd /tmp
-      - run: wget https://www.dotdeb.org/dotdeb.gpg
-      - run: sudo apt-key add dotdeb.gpg
-      - run: sudo apt-get update
-      - run: sudo apt-cache search php
-      - run: sudo apt-get install php7.1-intl
-
-      - run: composer install --no-progress --no-scripts --prefer-dist --optimize-autoloader --no-interaction --no-suggest
-      - run: composer vendor-expose copy
-      - run: framework/sake dev/build
+      - run:
+          name: Install Composer + run
+          command: |
+            curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
+            composer install --prefer-source --no-interaction
 
       - save_cache:
           paths:
             - ./vendor
-          key: v1-dependencies-{{ checksum "composer.json" }}
+          key: v1-composer-{{ checksum "composer.json" }}
+
+      ## Download and cache yarn dependencies
+      - restore_cache:
+          keys:
+            - v1-yarn-{{ checksum "yarn.lock" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-yarn-
+
+      - run: yarn install
+
+      - save_cache:
+          paths:
+            - ./node_modules
+          key: v1-yarn-{{ checksum "yarn.lock" }}
+
+      # run a build
+      - run: framework/sake dev/build
 
       # run tests!
-      - run: phpunit
+      - run: vendor/bin/phpunit -d memory_limit=512M
+
+      # Run the JS tests
+      - run: yarn run test-ci
