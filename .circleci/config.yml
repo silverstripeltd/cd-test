@@ -24,7 +24,7 @@ jobs:
   build:
     docker:
       # specify the version you desire here
-      - image: circleci/php:7.1.5-browsers
+      - image: circleci/php:7.1-apache-jessie
       - image: circleci/mysql:5.6.40
 
       # Specify service dependencies here if necessary
@@ -56,8 +56,11 @@ jobs:
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
 
+      - run: sudo apt-get update
+      - run: sudo apt-get -y install php7.1-intl
       - run: composer install --no-progress --no-scripts --prefer-dist --optimize-autoloader --no-interaction --no-suggest
       - run: composer vendor-expose copy
+      - run: framework/sake dev/build
 
       - save_cache:
           paths:
