@@ -6,10 +6,8 @@
 version: 2
 jobs:
 
+  # Build dependencies, composer, css, js etc
   build:
-    branches:
-      only:
-        - master
     working_directory: ~/var/www
     docker:
       - image: brettt89/silverstripe-web
@@ -35,6 +33,7 @@ jobs:
           root: ~/var/
           paths: www
 
+  # Run tests to ensure the reliability of this code
   test:
     working_directory: ~/var/www
     docker:
@@ -54,10 +53,11 @@ jobs:
           - MYSQL_HOST=127.0.0.1
     steps:
       - attach_workspace:
-        at: ~/var/
+          at: ~/var/
       - run: vendor/silverstripe/framework/sake dev/build
       - run: vendor/bin/phpunit mysite
 
+  # Package the built and tested code as it will be deployed
   package:
     working_directory: ~/var/www
     docker:
@@ -65,7 +65,19 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/var/
-      - run: ls -la
+      - run:
+          name: Compress and store as artifact
+          # Remove dev dependencies and git dir
+          # tar compress and store in easily findable location
+          command: |
+            rm -rf vendor/phpunit vendor/bin/phpunit .git
+            cd ..
+            cp -rp www site
+            mkdir /builds
+            tar -zcf /builds/$CIRCLE_SHA1 site
+      - store_artifacts:
+          # Directory on file system to store as artifcat
+          path: /builds
 
 workflows:
   version: 2
@@ -78,5 +90,8 @@ workflows:
       - package:
           requires:
             - test
+          filters:
+            branches:
+              only: master
 
 
