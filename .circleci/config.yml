@@ -63,6 +63,7 @@ jobs:
       - run: wget https://www.dotdeb.org/dotdeb.gpg
       - run: sudo apt-key add dotdeb.gpg
       - run: sudo apt-get update
+      - run: sudo apt-cache search php
       - run: sudo apt-get install php7.1-intl
 
       - run: composer install --no-progress --no-scripts --prefer-dist --optimize-autoloader --no-interaction --no-suggest
