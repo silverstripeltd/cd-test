@@ -43,7 +43,7 @@ jobs:
           command: |
             curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
             composer install --prefer-source --no-interaction
-            composer vendor-expose copy .
+            composer vendor-expose copy
 
       - save_cache:
           paths:
