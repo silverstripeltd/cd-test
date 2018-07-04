@@ -2,12 +2,30 @@
 #
 # Check https://circleci.com/docs/2.0/language-php/ for more details
 #
+install_composer: &install_composer
+  command: |
+      cd /tmp
+      EXPECTED_SIGNATURE=$(curl -q https://composer.github.io/installer.sig)
+      php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+      ACTUAL_SIGNATURE=$(php -r "echo hash_file('SHA384', 'composer-setup.php');")
+      if [ "$EXPECTED_SIGNATURE" != "$ACTUAL_SIGNATURE" ]
+      then
+          >&2 echo 'ERROR: Invalid installer signature'
+          rm composer-setup.php
+          exit 1
+      fi
+      sudo php composer-setup.php --quiet --install-dir /usr/local/bin --filename composer
+      RESULT=$?
+      rm composer-setup.php
+      exit $RESULT
+
 version: 2
 jobs:
   build:
     docker:
       # specify the version you desire here
       - image: circleci/php:7.1.5-browsers
+      - image: circleci/mysql:5.6.40
 
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -19,6 +37,9 @@ jobs:
     steps:
       - checkout
 
+      - run:
+          <<: *install_composer
+
       # Download and cache dependencies
       - restore_cache:
           keys:
@@ -26,7 +47,7 @@ jobs:
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
 
-      - run: composer install -n --prefer-dist
+      - run: composer install --no-progress --no-scripts --prefer-dist --no-dev --ignore-platform-reqs --optimize-autoloader --no-interaction --no-suggest
 
       - save_cache:
           paths:
