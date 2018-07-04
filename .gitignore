@@ -1,0 +1,11 @@
+/assets/
+/themes/simple/
+
+/vendor/
+/resources/
+
+.env
+
+.idea
+.DS_Store
+
