@@ -94,7 +94,6 @@ jobs:
           name: Get public location of artifacts from this build and queue a deployment
           command: |
             curl https://circleci.com/api/v1.1/project/github/silverstripeltd/cd-test/$((CIRCLE_BUILD_NUM-1))/artifacts?circle-token=$CIRCLE_CD_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
-            cat artifacts.txt
             echo "{ \"ref\": \"$(cat artifacts.txt)\", \"ref_type\": \"package\", \"title\": \"$CIRCLE_SHA1\", \"summary\": \"Automatically queued from CircleCI\", \"bypass\": false }" > data.json
             curl -X POST -u jake@silverstripe.com:$DASH_TOKEN https://platform.playpen.pl/naut/project/buildiso/environment/prod/deploys -H 'Content-Type: application/json' -H 'Accept: application/json' --data @data.json
 
@@ -113,7 +112,6 @@ jobs:
           name: Get public location of artifacts from this build and run a deployment
           command: |
             curl https://circleci.com/api/v1.1/project/github/silverstripeltd/cd-test/$((CIRCLE_BUILD_NUM-1))/artifacts?circle-token=$CIRCLE_CD_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
-            cat artifacts.txt
             echo "{ \"ref\": \"$(cat artifacts.txt)\", \"ref_type\": \"package\", \"title\": \"$CIRCLE_SHA1\", \"summary\": \"Automatically deployed from CircleCI\", \"bypass\": false, \"bypass_and_start\": true }" > data.json
             curl -X POST -u jake@silverstripe.com:$DASH_TOKEN https://platform.playpen.pl/naut/project/buildiso/environment/uat/deploys -H 'Content-Type: application/json' -H 'Accept: application/json' --data @data.json
 
