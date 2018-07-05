@@ -89,9 +89,9 @@ jobs:
           # CIRCLE_CD_TOKEN is configured as an env-var in circleci
           # Creation - https://circleci.com/docs/2.0/managing-api-tokens/#creating-a-personal-api-token
           # Configuring - https://circleci.com/docs/2.0/env-vars/
+          # CIRCLE_BUILD_NUM-1 because the artifacts are created in the step before this one
           command: |
-            export CIRCLE_TOKEN=$CIRCLE_CD_TOKEN
-            curl https://circleci.com/api/v1.1/project/gh/silverstripeltd/cd-test/$CIRCLE_BUILD_NUM/artifacts?circle-token=$CIRCLE_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
+            curl https://circleci.com/api/v1.1/project/github/silverstripeltd/cd-test/$((CIRCLE_BUILD_NUM-1))/artifacts?circle-token=$CIRCLE_CD_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
             cat artifacts.txt
 
   deploy_build_uat:
@@ -104,9 +104,9 @@ jobs:
           # CIRCLE_CD_TOKEN is configured as an env-var in circleci
           # Creation - https://circleci.com/docs/2.0/managing-api-tokens/#creating-a-personal-api-token
           # Configuring - https://circleci.com/docs/2.0/env-vars/
+          # CIRCLE_BUILD_NUM-1 because the artifacts are created in the step before this one
           command: |
-            export CIRCLE_TOKEN=$CIRCLE_CD_TOKEN
-            curl https://circleci.com/api/v1.1/project/gh/silverstripeltd/cd-test/$CIRCLE_BUILD_NUM/artifacts?circle-token=$CIRCLE_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
+            curl https://circleci.com/api/v1.1/project/github/silverstripeltd/cd-test/$((CIRCLE_BUILD_NUM-1))/artifacts?circle-token=$CIRCLE_CD_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
             cat artifacts.txt
 
 workflows:
