@@ -95,7 +95,7 @@ jobs:
           command: |
             curl https://circleci.com/api/v1.1/project/github/silverstripeltd/cd-test/$CIRCLE_PREVIOUS_BUILD_NUM/artifacts?circle-token=$CIRCLE_CD_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
             echo "{ \"ref\": \"$(cat artifacts.txt)?circle-token=$CIRCLE_CD_TOKEN\", \"ref_type\": \"package\", \"title\": \"[CI] $CIRCLE_SHA1\", \"summary\": \"automatically queued from CircleCI \\nrepo: $CIRCLE_REPOSITORY_URL \\ncode: $(cat artifacts.txt) \", \"bypass\": false }" > data.json
-            curl -X POST -u me@silverstripe.com:$DASH_TOKEN https://platform.silverstripe.com/naut/project/stack-code/environment/prod/deploys -H 'Content-Type: application/json' -H 'Accept: application/json' --data @data.json |& tee results.json
+            curl -X POST -u jake@silverstripe.com:$DASH_TOKEN https://platform.playpen.pl/naut/project/buildiso/environment/prod/deploys -H 'Content-Type: application/json' -H 'Accept: application/json' --data @data.json |& tee results.json
             grep '"status_code": 201' results.json
 
   # DASH_TOKEN is configured as an env-var in circleci
@@ -114,7 +114,7 @@ jobs:
           command: |
             curl https://circleci.com/api/v1.1/project/github/silverstripeltd/cd-test/$CIRCLE_PREVIOUS_BUILD_NUM/artifacts?circle-token=$CIRCLE_CD_TOKEN | grep -o 'https://[^"]*' > artifacts.txt
             echo "{ \"ref\": \"$(cat artifacts.txt)?circle-token=$CIRCLE_CD_TOKEN\", \"ref_type\": \"package\", \"title\": \"[CI] $CIRCLE_SHA1\", \"summary\": \"automatically deployed from CircleCI \\nrepo: $CIRCLE_REPOSITORY_URL \\ncode: $(cat artifacts.txt) \", \"bypass\": false, \"bypass_and_start\": true }" > data.json
-            curl -X POST -u me@silverstripe.com:$DASH_TOKEN https://platform.silverstripe.com/naut/project/stack-code/environment/uat/deploys -H 'Content-Type: application/json' -H 'Accept: application/json' --data @data.json |& tee results.json
+            curl -X POST -u jake@silverstripe.com:$DASH_TOKEN https://platform.playpen.pl/naut/project/buildiso/environment/uat/deploys -H 'Content-Type: application/json' -H 'Accept: application/json' --data @data.json |& tee results.json
             grep '"status_code": 201' results.json
 
 workflows:
@@ -141,5 +141,7 @@ workflows:
             - package
           filters:
             branches:
-              only: develop
+              only:
+                - develop
+                - jake_test
 
