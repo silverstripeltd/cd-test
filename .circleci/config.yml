@@ -70,7 +70,9 @@ jobs:
           # Remove dev dependencies and git dir
           # tar compress and store in easily findable location
           command: |
-            rm -rf vendor/phpunit vendor/bin/phpunit .git
+            curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
+            composer install --no-dev
+            rm -rf .git
             cd ..
             cp -rp www site
             mkdir /builds
