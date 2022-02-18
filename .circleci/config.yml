@@ -45,7 +45,7 @@ jobs:
           - SS_DATABASE_PASSWORD=ubuntu
           - SS_DATABASE_NAME=circle_test
           - SS_ENVIRONMENT_TYPE=dev
-      - image: circleci/mysql:5.7
+      - image: cimg/mysql:5.7
         environment:
           - MYSQL_USER=root
           - MYSQL_ROOT_PASSWORD=ubuntu
